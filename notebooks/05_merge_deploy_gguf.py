@@ -96,6 +96,7 @@ model.save_pretrained_merged(
     str(MERGED_PATH),
     tokenizer,
     save_method="merged_16bit",
+    save_original_format=False,
 )
 print(f"Saved merged FP16 to {MERGED_PATH}")
 
