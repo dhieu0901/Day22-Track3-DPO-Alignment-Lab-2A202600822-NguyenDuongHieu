@@ -42,7 +42,9 @@ esac
 # ── 2. Install deps ─────────────────────────────────────────────────────
 # Colab pre-installs torch + transformers; let pip resolve compatible versions.
 # Unsloth's installer picks the right CUDA wheel.
-pip install -q -r requirements.txt
+pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+pip install --no-deps bitsandbytes accelerate xformers trl peft triton
+pip install -q "datasets>=3.1,<4.0" "llama-cpp-python>=0.3,<1.0" "lm-eval[ifeval,math]>=0.4.5,<1.0" "openai>=1.55,<2.0" "anthropic>=0.40,<1.0" matplotlib pandas pyarrow
 
 if [ "$TIER" = "BIGGPU" ]; then
   echo "[colab] Installing BigGPU extras (vllm, flash-attn) — may take 3-5 min"

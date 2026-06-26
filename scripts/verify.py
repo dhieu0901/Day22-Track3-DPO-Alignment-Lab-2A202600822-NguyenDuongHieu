@@ -15,6 +15,10 @@ import re
 import sys
 from pathlib import Path
 
+# Force UTF-8 encoding for stdout to prevent UnicodeEncodeError on Windows console
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 TEMPLATE_MARKERS = [
     r"<Họ Tên>",
     r"<A20-K1 / A20-K2",

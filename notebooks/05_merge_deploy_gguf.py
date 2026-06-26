@@ -88,6 +88,10 @@ print(f"Loaded SFT-mini adapter from {SFT_PATH}")
 # %%
 # This re-loads the model with both SFT and DPO adapters merged into base weights.
 # Output is FP16 (or BF16 on Ampere+) HF-format weights ready for inference.
+if hasattr(model, "config") and hasattr(model.config, "tie_word_embeddings"):
+    model.config.tie_word_embeddings = False
+    print("Set model.config.tie_word_embeddings = False to prevent tied weights error")
+
 model.save_pretrained_merged(
     str(MERGED_PATH),
     tokenizer,
