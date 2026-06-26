@@ -92,11 +92,16 @@ if hasattr(model, "config") and hasattr(model.config, "tie_word_embeddings"):
     model.config.tie_word_embeddings = False
     print("Set model.config.tie_word_embeddings = False to prevent tied weights error")
 
+# Monkey-patch to bypass NotImplementedError bug in transformers revert_weight_conversion
+import transformers.modeling_utils
+import transformers.core_model_loading
+transformers.modeling_utils.revert_weight_conversion = lambda model, state_dict: state_dict
+transformers.core_model_loading.revert_weight_conversion = lambda model, state_dict: state_dict
+
 model.save_pretrained_merged(
     str(MERGED_PATH),
     tokenizer,
     save_method="merged_16bit",
-    save_original_format=False,
 )
 print(f"Saved merged FP16 to {MERGED_PATH}")
 
