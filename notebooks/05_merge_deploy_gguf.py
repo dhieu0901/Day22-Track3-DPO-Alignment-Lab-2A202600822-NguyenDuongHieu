@@ -88,20 +88,22 @@ if MERGED_PATH.exists():
     shutil.rmtree(MERGED_PATH)
 MERGED_PATH.mkdir(parents=True, exist_ok=True)
 
-# 1. Load the base model in full precision (16-bit)
-from unsloth import FastLanguageModel
+# 1. Load the base model in full precision (16-bit) using standard Hugging Face AutoModel
 import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name=BASE_MODEL,
-    max_seq_length=MAX_LEN,
-    dtype=None,
-    load_in_4bit=False,  # Load in full precision (FP16/BF16)
+BASE_MODEL_HF = (
+    "Qwen/Qwen2.5-3B" if COMPUTE_TIER == "T4"
+    else "Qwen/Qwen2.5-7B"
 )
 
-# Remove quantization config if present to avoid Hugging Face saving bug
-if hasattr(model, "config"):
-    model.config.quantization_config = None
+print(f"Loading base model {BASE_MODEL_HF} in FP16 on GPU...")
+model = AutoModelForCausalLM.from_pretrained(
+    BASE_MODEL_HF,
+    torch_dtype=torch.float16,
+    device_map="auto",
+)
+tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL_HF)
 
 # 2. Load the SFT-mini adapter and merge it
 from peft import PeftModel
@@ -116,10 +118,6 @@ print(f"Loading DPO adapter from {DPO_PATH}...")
 model = PeftModel.from_pretrained(model, str(DPO_PATH))
 print("Merging DPO adapter...")
 model = model.merge_and_unload()
-
-# Remove quantization config again to be absolutely sure
-if hasattr(model, "config"):
-    model.config.quantization_config = None
 
 # 4. Save the merged model and tokenizer
 print(f"Saving merged FP16 model to {MERGED_PATH}...")
