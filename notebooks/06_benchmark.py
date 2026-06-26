@@ -28,8 +28,16 @@
 # %%
 import os
 import json
+import os
+import json
 import gc
 from pathlib import Path
+
+# Tự động nhận diện thư mục dự án trên Colab/Local
+if Path("/content/lab22").exists():
+    REPO_ROOT = Path("/content/lab22")
+else:
+    REPO_ROOT = Path.cwd().parent if Path.cwd().name == "notebooks" else Path.cwd()
 
 COMPUTE_TIER = os.environ.get("COMPUTE_TIER", "T4").upper()
 
@@ -46,16 +54,17 @@ else:
     LIMIT_ALPACA = 250
     BATCH_SIZE = 4
 
-REPO_ROOT = Path.cwd().parent if Path.cwd().name == "notebooks" else Path.cwd()
 SFT_PATH = REPO_ROOT / "adapters" / "sft-mini"
 DPO_PATH = REPO_ROOT / "adapters" / "dpo"
 EVAL_OUT = REPO_ROOT / "data" / "eval"
 EVAL_OUT.mkdir(parents=True, exist_ok=True)
 
-assert SFT_PATH.exists(), "NB1 must run first"
-assert DPO_PATH.exists(), "NB3 must run first"
+assert SFT_PATH.exists(), f"SFT_PATH does not exist: {SFT_PATH}"
+assert DPO_PATH.exists(), f"DPO_PATH does not exist: {DPO_PATH}"
 
 print(f"COMPUTE_TIER:    {COMPUTE_TIER}")
+print(f"SFT adapter:     {SFT_PATH}")
+print(f"DPO adapter:     {DPO_PATH}")
 print(f"IFEval:          {LIMIT_IFEVAL} prompts")
 print(f"GSM8K:           {LIMIT_GSM8K} problems")
 print(f"MMLU:            {LIMIT_MMLU} questions")
