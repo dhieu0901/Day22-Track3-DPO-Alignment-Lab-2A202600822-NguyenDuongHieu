@@ -80,34 +80,55 @@ print(f"Loaded SFT-mini adapter from {SFT_PATH}")
 
 # %% [markdown]
 # ## 2. Save merged FP16 weights
-#
-# `save_pretrained_merged(method="merged_16bit")` produces a HuggingFace-format
-# directory you can either upload to HF Hub directly OR feed into the GGUF
-# converter in step 3.
-
 # %%
-# This re-loads the model with both SFT and DPO adapters merged into base weights.
-# Output is FP16 (or BF16 on Ampere+) HF-format weights ready for inference.
-if hasattr(model, "config") and hasattr(model.config, "tie_word_embeddings"):
-    model.config.tie_word_embeddings = False
-    print("Set model.config.tie_word_embeddings = False to prevent tied weights error")
+# Clean up any bad previous attempts
+import shutil
+from pathlib import Path
+if MERGED_PATH.exists():
+    shutil.rmtree(MERGED_PATH)
+MERGED_PATH.mkdir(parents=True, exist_ok=True)
 
-# Monkey-patch to bypass NotImplementedError bug in transformers revert_weight_conversion
-import transformers.modeling_utils
-import transformers.core_model_loading
-transformers.modeling_utils.revert_weight_conversion = lambda model, state_dict: state_dict
-transformers.core_model_loading.revert_weight_conversion = lambda model, state_dict: state_dict
+# 1. Load the base model in full precision (16-bit)
+from unsloth import FastLanguageModel
+import torch
 
-model.save_pretrained_merged(
-    str(MERGED_PATH),
-    tokenizer,
-    save_method="merged_16bit",
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name=BASE_MODEL,
+    max_seq_length=MAX_LEN,
+    dtype=None,
+    load_in_4bit=False,  # Load in full precision (FP16/BF16)
 )
+
+# Remove quantization config if present to avoid Hugging Face saving bug
+if hasattr(model, "config"):
+    model.config.quantization_config = None
+
+# 2. Load the SFT-mini adapter and merge it
+from peft import PeftModel
+SFT_PATH = REPO_ROOT / "adapters" / "sft-mini"
+print(f"Loading SFT adapter from {SFT_PATH}...")
+model = PeftModel.from_pretrained(model, str(SFT_PATH))
+print("Merging SFT adapter...")
+model = model.merge_and_unload()
+
+# 3. Load the DPO adapter and merge it
+print(f"Loading DPO adapter from {DPO_PATH}...")
+model = PeftModel.from_pretrained(model, str(DPO_PATH))
+print("Merging DPO adapter...")
+model = model.merge_and_unload()
+
+# Remove quantization config again to be absolutely sure
+if hasattr(model, "config"):
+    model.config.quantization_config = None
+
+# 4. Save the merged model and tokenizer
+print(f"Saving merged FP16 model to {MERGED_PATH}...")
+model.save_pretrained(str(MERGED_PATH))
+tokenizer.save_pretrained(str(MERGED_PATH))
 print(f"Saved merged FP16 to {MERGED_PATH}")
 
-# Free GPU memory before GGUF conversion (which spawns a subprocess that needs RAM)
+# Free memory
 import gc
-
 del model
 gc.collect()
 torch.cuda.empty_cache()
